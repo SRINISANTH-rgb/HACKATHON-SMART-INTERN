@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Medical Prescription Verifier</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="background-pattern"></div>
+
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo-section">
+        <div class="logo">
+          <i class="fas fa-prescription-bottle-alt"></i>
+          <span>MedVerify</span>
+        </div>
+        <p class="tagline">AI-Powered Prescription Analysis</p>
+      </div>
+      <div class="theme-toggle">
+        <i class="fas fa-moon"></i>
+      </div>
+    </header>
+
+    <div class="main-content">
+      <!-- Left Panel -->
+      <section class="upload-card">
+        <div class="card-header">
+          <h2><i class="fas fa-upload"></i> Upload Prescription</h2>
+          <p class="subtitle">Support for images and text files</p>
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+          <div class="upload-icon">
+            <i class="fas fa-cloud-upload-alt"></i>
+          </div>
+          <h3>Drag & Drop or Click to Upload</h3>
+          <p>Supports JPG, PNG, JPEG, and TXT files</p>
+          <input type="file" id="upload" name="file" accept=".jpg,.jpeg,.png,.txt" />
+        </div>
+
+        <div class="file-info" id="fileInfo" style="display: none;">
+          <div class="file-details">
+            <i class="fas fa-file"></i>
+            <div>
+              <span class="file-name" id="fileName"></span>
+              <span class="file-size" id="fileSize"></span>
+            </div>
+          </div>
+          <button class="remove-file" id="removeFile">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <button id="analyzeBtn" class="analyze-btn" disabled>
+          <i class="fas fa-search"></i>
+          <span>Analyze Prescription</span>
+        </button>
+      </section>
+
+      <!-- Right Panel -->
+      <section class="results-panel">
+        <div class="panel-header">
+          <h2><i class="fas fa-chart-line"></i> Analysis Results</h2>
+          <div class="status-indicator" id="statusIndicator">
+            <span class="status-text">Ready</span>
+          </div>
+        </div>
+
+        <div id="resultsArea" class="results">
+          <div class="empty-state">
+            <i class="fas fa-file-medical"></i>
+            <h3>No Analysis Yet</h3>
+            <p>Upload a prescription file to get started</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    // File handling
+    const fileInput = document.getElementById("upload");
+    const uploadArea = document.getElementById("uploadArea");
+    const fileInfo = document.getElementById("fileInfo");
+    const fileName = document.getElementById("fileName");
+    const fileSize = document.getElementById("fileSize");
+    const removeFileBtn = document.getElementById("removeFile");
+    const analyzeBtn = document.getElementById("analyzeBtn");
+    const resultsArea = document.getElementById("resultsArea");
+    const statusIndicator = document.getElementById("statusIndicator");
+
+    // Drag and drop functionality
+    uploadArea.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      uploadArea.classList.add("drag-over");
+    });
+
+    uploadArea.addEventListener("dragleave", () => {
+      uploadArea.classList.remove("drag-over");
+    });
+
+    uploadArea.addEventListener("drop", (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove("drag-over");
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        handleFileSelect(files[0]);
+      }
+    });
+
+    uploadArea.addEventListener("click", () => {
+      fileInput.click();
+    });
+
+    fileInput.addEventListener("change", (e) => {
+      if (e.target.files.length > 0) {
+        handleFileSelect(e.target.files[0]);
+      }
+    });
+
+    removeFileBtn.addEventListener("click", () => {
+      clearFile();
+    });
+
+    function handleFileSelect(file) {
+      // Check file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'text/plain'];
+      const allowedExtensions = ['.jpg', '.jpeg', '.png', '.txt'];
+      const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+
+      if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
+        alert("Please upload a valid file (JPG, JPEG, PNG, or TXT).");
+        return;
+      }
+
+      // Show file info
+      fileName.textContent = file.name;
+      fileSize.textContent = formatFileSize(file.size);
+      fileInfo.style.display = "flex";
+      uploadArea.style.display = "none";
+      analyzeBtn.disabled = false;
+
+      // Store file reference
+      fileInput.files = createFileList(file);
+    }
+
+    function clearFile() {
+      fileInfo.style.display = "none";
+      uploadArea.style.display = "flex";
+      analyzeBtn.disabled = true;
+      fileInput.value = "";
+      setStatus("Ready", "ready");
+    }
+
+    function createFileList(file) {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      return dt.files;
+    }
+
+    function formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function setStatus(text, type) {
+      const statusText = statusIndicator.querySelector('.status-text');
+      statusText.textContent = text;
+      statusIndicator.className = `status-indicator ${type}`;
+    }
+
+    // Analysis functionality
+    analyzeBtn.addEventListener("click", async () => {
+      const file = fileInput.files[0];
+
+      if (!file) {
+        alert("Please upload a prescription file first.");
+        return;
+      }
+
+      setStatus("Analyzing...", "processing");
+      analyzeBtn.disabled = true;
+
+      // Show loading state
+      resultsArea.innerHTML = `
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <h3>Analyzing Prescription</h3>
+          <p>Please wait while we process your file...</p>
+        </div>
+      `;
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        const res = await fetch("http://127.0.0.1:8000/analyze", {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.detail || "Analysis failed");
+        }
+
+        if (data.analysis && data.analysis.length > 0) {
+          displayResults(data);
+          setStatus("Analysis Complete", "success");
+        } else {
+          displayNoResults(data.file_type);
+          setStatus("No Data Found", "warning");
+        }
+      } catch (error) {
+        console.error("Error:", error);
+        displayError(error.message);
+        setStatus("Analysis Failed", "error");
+      } finally {
+        analyzeBtn.disabled = false;
+      }
+    });
+
+    function displayResults(data) {
+      let html = `
+        <div class="results-header">
+          <h3><i class="fas fa-pills"></i> Medication Analysis</h3>
+          <span class="file-type-badge">${data.file_type.toUpperCase()}</span>
+        </div>
+        <div class="medications-grid">
+      `;
+
+      data.analysis.forEach((item, index) => {
+        const statusIcon = item.status === "Safe" ? "fas fa-check-circle" : "fas fa-exclamation-triangle";
+        const statusClass = item.status === "Safe" ? "safe" : "review";
+
+        html += `
+          <div class="medication-card">
+            <div class="medication-header">
+              <h4>${item.medicine}</h4>
+              <div class="status-badge ${statusClass}">
+                <i class="${statusIcon}"></i>
+                ${item.status}
+              </div>
+            </div>
+            <p class="medication-info">${item.info}</p>
+          </div>
+        `;
+      });
+
+      html += "</div>";
+
+      if (data.extracted_text && data.extracted_text.trim()) {
+        html += `
+          <div class="extracted-text-section">
+            <h3><i class="fas fa-file-alt"></i> Extracted Content</h3>
+            <div class="extracted-text-content">
+              <pre>${data.extracted_text}</pre>
+            </div>
+          </div>
+        `;
+      }
+
+      resultsArea.innerHTML = html;
+    }
+
+    function displayNoResults(fileType) {
+      resultsArea.innerHTML = `
+        <div class="no-results-state">
+          <i class="fas fa-search"></i>
+          <h3>No Medications Found</h3>
+          <p>No prescription data could be extracted from the ${fileType} file. Please ensure the file contains clear prescription information.</p>
+        </div>
+      `;
+    }
+
+    function displayError(message) {
+      resultsArea.innerHTML = `
+        <div class="error-state">
+          <i class="fas fa-exclamation-circle"></i>
+          <h3>Analysis Error</h3>
+          <p>${message}</p>
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
